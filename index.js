@@ -131,6 +131,25 @@ function buildPanelButtons() {
   );
 }
 
+function buildAbmeldungPanelEmbed() {
+  return new EmbedBuilder()
+    .setColor(0xe74c3c)
+    .setTitle("🔴 Abmeldung")
+    .setDescription("Klicke unten auf **Abmelden**, um dich auszutragen.")
+    .setFooter({ text: "Abmeldung • Automatisches Logging aktiv" })
+    .setTimestamp();
+}
+
+function buildAbmeldungPanelButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("dienst_aus")
+      .setLabel("Abmelden")
+      .setEmoji("🔴")
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
 function buildStatusEmbed(guild) {
   const users = Object.values(state.users);
 
@@ -325,18 +344,24 @@ async function austragen(interaction) {
 
 async function registerCommands() {
   const commands = [
-    new SlashCommandBuilder()
-      .setName("dienstpanel")
-      .setDescription("Sendet das Dienst-Panel in diesen Channel")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .toJSON(),
+  new SlashCommandBuilder()
+    .setName("dienstpanel")
+    .setDescription("Sendet das Dienst-Panel in diesen Channel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
 
-    new SlashCommandBuilder()
-      .setName("dienststatus")
-      .setDescription("Aktualisiert die Dienst-Anzeige")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .toJSON(),
-  ];
+  new SlashCommandBuilder()
+    .setName("dienststatus")
+    .setDescription("Aktualisiert die Dienst-Anzeige")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+
+  new SlashCommandBuilder()
+    .setName("abmeldungspanel")
+    .setDescription("Sendet das Abmeldungspanel in diesen Channel")
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .toJSON(),
+];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
@@ -406,5 +431,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
     });
   }
 });
+
+if (interaction.commandName === "abmeldungspanel") {
+  await interaction.reply({
+    embeds: [buildAbmeldungPanelEmbed()],
+    components: [buildAbmeldungPanelButtons()],
+  });
+
+  return;
+}
 
 client.login(process.env.TOKEN);
