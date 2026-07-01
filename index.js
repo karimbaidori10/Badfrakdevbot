@@ -15,6 +15,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  AttachmentBuilder,
 } = require("discord.js");
 
 const client = new Client({
@@ -283,39 +284,16 @@ async function waitForFightImage(interaction) {
       return type.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
     });
 
-    await msg.delete().catch(() => {});
+    if (!image) return null;
 
-    return image?.url || null;
+    return {
+      url: image.url,
+      name: image.name || "fight-bild.png",
+      message: msg,
+    };
   } catch {
     return null;
   }
-}
-
-/* =========================
-   SLASH COMMANDS
-========================= */
-
-async function registerCommands() {
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("abmeldungspanel")
-      .setDescription("Sendet das Abmeldungspanel in diesen Channel")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .toJSON(),
-
-    new SlashCommandBuilder()
-      .setName("fightpanel")
-      .setDescription("Sendet das Fight-Einträge Panel in diesen Channel")
-      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-      .toJSON(),
-  ];
-
-  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
-
-  await rest.put(
-    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
-    { body: commands }
-  );
 }
 
 /* =========================
@@ -493,7 +471,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const forderung = interaction.fields.getTextInputValue("forderung");
         const details = interaction.fields.getTextInputValue("details");
 
-        const imageUrl = await waitForFightImage(interaction);
+        const imageData = await waitForFightImage(interaction);
 
         const targetChannelId = process.env.FIGHT_4H_CHANNEL_ID;
 
@@ -559,9 +537,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
           })
           .setTimestamp();
 
-        if (imageUrl) embed.setImage(imageUrl);
+        if (imageData) {
+  const fileName = imageData.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  embed.setImage(`attachment://${fileName}`);
 
-        await targetChannel.send({ embeds: [embed] });
+  await targetChannel.send({
+    embeds: [embed],
+    files: [{ attachment: imageData.url, name: fileName }],
+  });
+
+  await imageData.message.delete().catch(() => {});
+} else {
+  await targetChannel.send({ embeds: [embed] });
+}
 
         return interaction.editReply(`✅ 4H-Regel Eintrag wurde in <#${targetChannelId}> gesendet.`);
       }
@@ -575,7 +563,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const ortzeit = interaction.fields.getTextInputValue("ortzeit");
         const ergebnis = interaction.fields.getTextInputValue("ergebnis") || "-";
 
-        const imageUrl = await waitForFightImage(interaction);
+        const imageData = await waitForFightImage(interaction);
 
         const targetChannelId = process.env.FIGHT_STREETFIGHT_CHANNEL_ID;
 
@@ -641,9 +629,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
           })
           .setTimestamp();
 
-        if (imageUrl) embed.setImage(imageUrl);
+        if (imageData) {
+  const fileName = imageData.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  embed.setImage(`attachment://${fileName}`);
 
-        await targetChannel.send({ embeds: [embed] });
+  await targetChannel.send({
+    embeds: [embed],
+    files: [{ attachment: imageData.url, name: fileName }],
+  });
+
+  await imageData.message.delete().catch(() => {});
+} else {
+  await targetChannel.send({ embeds: [embed] });
+}
 
         return interaction.editReply(`✅ Streetfight Eintrag wurde in <#${targetChannelId}> gesendet.`);
       }
