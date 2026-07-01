@@ -1,7 +1,5 @@
 require("dotenv").config();
 
-const fs = require("fs");
-const path = require("path");
 const {
   Client,
   GatewayIntentBits,
@@ -19,124 +17,33 @@ const {
   TextInputStyle,
 } = require("discord.js");
 
-const DATA_DIR = path.join(__dirname, "data");
-const DATA_FILE = path.join(DATA_DIR, "dienst-state.json");
-
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
-
-function loadState() {
-  if (!fs.existsSync(DATA_FILE)) {
-    return {
-      statusMessageId: null,
-      users: {},
-      history: [],
-    };
-  }
-
-  return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-}
-
-function saveState() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(state, null, 2));
-}
-
-let state = loadState();
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
   ],
 });
-
-function unix(ms) {
-  return Math.floor(ms / 1000);
-}
-
-function typeName(type) {
-  if (type === "leader") return "LS ist IC";
-  return "Masse ist IC";
-}
-
-function typeEmoji(type) {
-  if (type === "leader") return "👑";
-  return "👥";
-}
 
 function getLogoUrl() {
   return process.env.AOD_LOGO_URL || client.user?.displayAvatarURL();
 }
 
-function getRoleIdsForType(type) {
-  const ids = [];
+function makeInput(id, label, placeholder, style, required = true) {
+  const input = new TextInputBuilder()
+    .setCustomId(id)
+    .setLabel(label)
+    .setPlaceholder(placeholder)
+    .setStyle(style)
+    .setRequired(required);
 
-  if (process.env.ROLE_IM_DIENST_ID) {
-    ids.push(process.env.ROLE_IM_DIENST_ID);
-  }
-
-  if (type === "masse" && process.env.ROLE_MASSE_DIENST_ID) {
-    ids.push(process.env.ROLE_MASSE_DIENST_ID);
-  }
-
-  if (type === "leader" && process.env.ROLE_LEADERSCHAFT_DIENST_ID) {
-    ids.push(process.env.ROLE_LEADERSCHAFT_DIENST_ID);
-  }
-
-  return ids.filter(Boolean);
+  return new ActionRowBuilder().addComponents(input);
 }
 
-function getAllDienstRoleIds() {
-  return [
-    process.env.ROLE_IM_DIENST_ID,
-    process.env.ROLE_MASSE_DIENST_ID,
-    process.env.ROLE_LEADERSCHAFT_DIENST_ID,
-  ].filter(Boolean);
-}
-
-function buildPanelEmbed() {
-  return new EmbedBuilder()
-    .setColor(0x2ecc71)
-    .setTitle("🟢 Dienstsystem")
-    .setDescription(
-      [
-        "Trage dich hier in den Dienst ein oder wieder aus.",
-        "",
-        "👥 **Masse ist IC** = als Masse eintragen",
-        "👑 **Leaderschaft** = als Leaderschaft eintragen",
-        "🔴 **Austragen** =  Austragen",
-      ].join("\n")
-    )
-    .setFooter({ text: "Dienst Panel • Automatisches Logging aktiv" })
-    .setTimestamp();
-}
-
-function buildPanelButtons() {
-  return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("dienst_masse")
-      .setLabel("Masse ist IC")
-      .setEmoji("👥")
-      .setStyle(ButtonStyle.Success),
-
-    new ButtonBuilder()
-      .setCustomId("dienst_leader")
-      .setLabel("Leaderschaft ist IC")
-      .setEmoji("👑")
-      .setStyle(ButtonStyle.Primary),
-
-    new ButtonBuilder()
-      .setCustomId("dienst_aus")
-      .setLabel("Austragen")
-      .setEmoji("🔴")
-      .setStyle(ButtonStyle.Danger),
-
-    new ButtonBuilder()
-      .setCustomId("dienst_refresh")
-      .setLabel("Aktualisieren")
-      .setEmoji("🔄")
-      .setStyle(ButtonStyle.Secondary)
-  );
-}
+/* =========================
+   ABMELDUNGSSYSTEM
+========================= */
 
 function buildAbmeldungPanelEmbed() {
   return new EmbedBuilder()
@@ -152,7 +59,7 @@ function buildAbmeldungPanelEmbed() {
         "Dann trage deine Abmeldung hier sauber ein.",
         "",
         "```ansi",
-        "[2;35mBenötigte Angaben[0m",
+        "\u001b[2;35mBenötigte Angaben\u001b[0m",
         "• Von wann",
         "• Bis wann",
         "• Grund",
@@ -196,288 +103,212 @@ function buildAbmeldungModal() {
     .setCustomId("abmeldung_modal")
     .setTitle("Abmeldung eintragen");
 
-  const vonInput = new TextInputBuilder()
-    .setCustomId("abmeldung_von")
-    .setLabel("Von wann?")
-    .setPlaceholder("z.B. 01.07.2026 18:00 Uhr")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
-
-  const bisInput = new TextInputBuilder()
-    .setCustomId("abmeldung_bis")
-    .setLabel("Bis wann?")
-    .setPlaceholder("z.B. 03.07.2026 20:00 Uhr")
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
-
-  const grundInput = new TextInputBuilder()
-    .setCustomId("abmeldung_grund")
-    .setLabel("Grund")
-    .setPlaceholder("z.B. Privat, Arbeit, Urlaub, Krankheit...")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
-
   modal.addComponents(
-    new ActionRowBuilder().addComponents(vonInput),
-    new ActionRowBuilder().addComponents(bisInput),
-    new ActionRowBuilder().addComponents(grundInput)
+    makeInput(
+      "abmeldung_von",
+      "Von wann?",
+      "z.B. 01.07.2026 18:00 Uhr",
+      TextInputStyle.Short
+    ),
+    makeInput(
+      "abmeldung_bis",
+      "Bis wann?",
+      "z.B. 03.07.2026 20:00 Uhr",
+      TextInputStyle.Short
+    ),
+    makeInput(
+      "abmeldung_grund",
+      "Grund",
+      "z.B. Privat, Arbeit, Urlaub, Krankheit...",
+      TextInputStyle.Paragraph
+    )
   );
 
   return modal;
 }
 
-function buildStatusEmbed(guild) {
-  const users = Object.values(state.users);
+/* =========================
+   FIGHT EINTRÄGE SYSTEM
+========================= */
 
-  const masse = users.filter((u) => u.type === "masse");
-  const leader = users.filter((u) => u.type === "leader");
-
-  const formatList = (list) => {
-    if (!list.length) return "Keiner ist IC";
-
-    return list
-      .map((u) => {
-        return `• <@${u.userId}> seit <t:${unix(u.since)}:t> — <t:${unix(u.since)}:R>`;
-      })
-      .join("\n");
-  };
-
+function buildFightPanelEmbed() {
   return new EmbedBuilder()
-    .setColor(0x3498db)
-    .setTitle("📋 Aktuell IC")
-    .setDescription(`Live-Übersicht für **${guild.name}**`)
+    .setColor(0x6f2dbd)
+    .setAuthor({
+      name: "Angels of Death • Fight-System",
+      iconURL: getLogoUrl(),
+    })
+    .setTitle("🏠 Fight-Einträge")
+    .setDescription(
+      [
+        "Trage hier sauber neue Fights ein.",
+        "",
+        "🏠 **4H-Regel**",
+        "Wird automatisch in den 4H-Regel Channel geschickt.",
+        "",
+        "🚘 **Streetfight**",
+        "Wird automatisch in den Streetfight Channel geschickt.",
+        "",
+        "📸 Nach dem Formular kannst du optional ein Bild senden.",
+      ].join("\n")
+    )
     .addFields(
       {
-        name: `👥 Masse ist IC — ${masse.length}`,
-        value: formatList(masse),
-        inline: false,
+        name: "🏠 4H-Regel",
+        value: "Für Base-Raid / 4-Stunden-Regel Einträge.",
+        inline: true,
       },
       {
-        name: `👑 Leaderschaft ist IC — ${leader.length}`,
-        value: formatList(leader),
-        inline: false,
-      },
-      {
-        name: "📊 Gesamt",
-        value: `**${users.length}** Person(en) aktuell IC `,
-        inline: false,
+        name: "🚘 Streetfight",
+        value: "Für Streetfight-Stand, Forderung und Ort.",
+        inline: true,
       }
     )
-    .setFooter({ text: "Wird automatisch aktualisiert" })
+    .setThumbnail(getLogoUrl())
+    .setFooter({
+      text: "AOD • Fight-Einträge",
+      iconURL: getLogoUrl(),
+    })
     .setTimestamp();
 }
 
-async function updateStatusMessage(guild) {
-  const channelId = process.env.DIENST_STATUS_CHANNEL_ID;
-  if (!channelId) return;
+function buildFightPanelButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("fight_open_4h")
+      .setLabel("4H-Regel eintragen")
+      .setEmoji("🏠")
+      .setStyle(ButtonStyle.Primary),
 
-  const channel = await guild.channels.fetch(channelId).catch(() => null);
-  if (!channel) return;
-
-  const embed = buildStatusEmbed(guild);
-
-  let message = null;
-
-  if (state.statusMessageId) {
-    message = await channel.messages.fetch(state.statusMessageId).catch(() => null);
-  }
-
-  if (message) {
-    await message.edit({ embeds: [embed] }).catch(async () => {
-      const newMessage = await channel.send({ embeds: [embed] });
-      state.statusMessageId = newMessage.id;
-      saveState();
-    });
-    return;
-  }
-
-  const newMessage = await channel.send({ embeds: [embed] });
-  state.statusMessageId = newMessage.id;
-  saveState();
+    new ButtonBuilder()
+      .setCustomId("fight_open_streetfight")
+      .setLabel("Streetfight eintragen")
+      .setEmoji("🚘")
+      .setStyle(ButtonStyle.Danger)
+  );
 }
 
-async function sendLog(guild, user, action, type = null) {
-  const channelId = process.env.DIENST_LOG_CHANNEL_ID;
-  if (!channelId) return;
+function build4hModal() {
+  const modal = new ModalBuilder()
+    .setCustomId("fight_modal_4h")
+    .setTitle("4H-Regel eintragen");
 
-  const channel = await guild.channels.fetch(channelId).catch(() => null);
-  if (!channel) return;
+  modal.addComponents(
+    makeInput("fraktion", "Eigene Fraktion", "z.B. LRN", TextInputStyle.Short),
+    makeInput("gegner", "Gegnerische Fraktion", "z.B. 069", TextInputStyle.Short),
+    makeInput("gewinner", "Wer hat gewonnen?", "z.B. Wir / Gegner", TextInputStyle.Short),
+    makeInput("forderung", "Forderung", "z.B. Route / 3 Mio", TextInputStyle.Short),
+    makeInput(
+      "details",
+      "Details",
+      "Raus: 14:55\nWieder Rein: 18:55\nStand: 2:1\nOrt: Anwesen\nNotiz: -",
+      TextInputStyle.Paragraph
+    )
+  );
 
-  const color =
-    action === "eintragen" ? 0x2ecc71 :
-    action === "wechsel" ? 0xf1c40f :
-    0xe74c3c;
+  return modal;
+}
 
-  const title =
-    action === "eintragen" ? "🟢 IC eingetragen" :
-    action === "wechsel" ? "🟡 IC-Art gewechselt" :
-    "🔴 IC ausgetragen";
+function buildStreetfightModal() {
+  const modal = new ModalBuilder()
+    .setCustomId("fight_modal_streetfight")
+    .setTitle("Streetfight eintragen");
 
-  const embed = new EmbedBuilder()
-  .setColor(0x6f2dbd)
-  .setAuthor({
-    name: "Angels of Death • Neue Abmeldung",
-    iconURL: getLogoUrl(),
-  })
-  .setTitle("📌 Abmeldung eingetragen")
-  .setDescription(
+  modal.addComponents(
+    makeInput("gegner", "Name / Gegner", "z.B. 069", TextInputStyle.Short),
+    makeInput("stand", "Stand", "z.B. 1:0", TextInputStyle.Short),
+    makeInput("forderung", "Forderung", "z.B. 3 Mio und Lotus entblockt", TextInputStyle.Short),
+    makeInput(
+      "ortzeit",
+      "Ort & Zeit",
+      "Ort: Staatsbank\nZeit: 22:10",
+      TextInputStyle.Paragraph
+    ),
+    makeInput(
+      "ergebnis",
+      "Ergebnis / Notiz",
+      "z.B. Gewonnen / Verloren / Notiz",
+      TextInputStyle.Paragraph,
+      false
+    )
+  );
+
+  return modal;
+}
+
+async function waitForFightImage(interaction) {
+  await interaction.editReply(
     [
-      `> <@${interaction.user.id}> hat eine neue Abmeldung eingetragen.`,
+      "✅ Formular gespeichert.",
       "",
-      "━━━━━━━━━━━━━━━━━━━━",
+      "📸 Schick jetzt optional ein Bild in diesen Channel.",
+      "Schreibe `skip`, wenn kein Bild rein soll.",
+      "",
+      "⏳ Zeit: 60 Sekunden",
     ].join("\n")
-  )
-  .addFields(
-    {
-      name: "👤 Person",
-      value: `<@${interaction.user.id}>`,
-      inline: true,
-    },
-    {
-      name: "📅 Von",
-      value: `\`${von}\``,
-      inline: true,
-    },
-    {
-      name: "📅 Bis",
-      value: `\`${bis}\``,
-      inline: true,
-    },
-    {
-      name: "📝 Grund",
-      value: `>>> ${grund}`,
-      inline: false,
-    },
-    {
-      name: "✅ Status",
-      value: "`Abgemeldet`",
-      inline: true,
-    },
-    {
-      name: "🕒 Eingetragen",
-      value: `<t:${Math.floor(Date.now() / 1000)}:f>`,
-      inline: true,
-    }
-  )
-  .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
-  .setImage(getLogoUrl())
-  .setFooter({
-    text: "AOD • Abmeldungssystem",
-    iconURL: getLogoUrl(),
-  })
-  .setTimestamp();
+  );
 
-  await channel.send({ embeds: [embed] });
-}
+  const filter = (msg) => {
+    if (msg.author.id !== interaction.user.id) return false;
 
-async function eintragen(interaction, type) {
-  const member = interaction.member;
-  const userId = member.id;
+    const saysSkip = msg.content.toLowerCase() === "skip";
 
-  if (
-    type === "leader" &&
-    process.env.LEADERSCHAFT_BASE_ROLE_ID &&
-    !member.roles.cache.has(process.env.LEADERSCHAFT_BASE_ROLE_ID)
-  ) {
-    return interaction.editReply({
-      content: "❌ Du hast keine Berechtigung, dich als **Leaderschaft** einzutragen.",
+    const hasImage = msg.attachments.some((att) => {
+      const name = att.name || "";
+      const type = att.contentType || "";
+      return type.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
     });
-  }
 
-  const old = state.users[userId];
-  const action = old ? "wechsel" : "eintragen";
-
-  const allDienstRoles = getAllDienstRoleIds();
-  const newRoles = getRoleIdsForType(type);
-
-  await member.roles.remove(allDienstRoles).catch(() => {});
-  await member.roles.add(newRoles).catch((err) => {
-    console.error("Rollen konnten nicht gegeben werden:", err);
-  });
-
-  state.users[userId] = {
-    userId,
-    tag: interaction.user.tag,
-    type,
-    since: Date.now(),
+    return saysSkip || hasImage;
   };
 
-  state.history.unshift({
-    userId,
-    tag: interaction.user.tag,
-    action,
-    type,
-    time: Date.now(),
-  });
-
-  state.history = state.history.slice(0, 500);
-  saveState();
-
-  await updateStatusMessage(interaction.guild);
-  await sendLog(interaction.guild, interaction.user, action, type);
-
-  return interaction.editReply({
-    content: `✅ Du bist jetzt als **${typeName(type)}** IC eingetragen.`,
-  });
-}
-
-async function austragen(interaction) {
-  const member = interaction.member;
-  const userId = member.id;
-
-  if (!state.users[userId]) {
-    return interaction.editReply({
-      content: "⚠️ Du bist aktuell nicht IC eingetragen.",
+  try {
+    const collected = await interaction.channel.awaitMessages({
+      filter,
+      max: 1,
+      time: 60000,
+      errors: ["time"],
     });
+
+    const msg = collected.first();
+
+    if (msg.content.toLowerCase() === "skip") {
+      await msg.delete().catch(() => {});
+      return null;
+    }
+
+    const image = msg.attachments.find((att) => {
+      const name = att.name || "";
+      const type = att.contentType || "";
+      return type.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif)$/i.test(name);
+    });
+
+    await msg.delete().catch(() => {});
+
+    return image?.url || null;
+  } catch {
+    return null;
   }
-
-  const oldType = state.users[userId].type;
-
-  await member.roles.remove(getAllDienstRoleIds()).catch((err) => {
-    console.error("Rollen konnten nicht entfernt werden:", err);
-  });
-
-  delete state.users[userId];
-
-  state.history.unshift({
-    userId,
-    tag: interaction.user.tag,
-    action: "austragen",
-    type: oldType,
-    time: Date.now(),
-  });
-
-  state.history = state.history.slice(0, 500);
-  saveState();
-
-  await updateStatusMessage(interaction.guild);
-  await sendLog(interaction.guild, interaction.user, "austragen", oldType);
-
-  return interaction.editReply({
-    content: "🔴 Du wurdest IC ausgetragen.",
-  });
 }
+
+/* =========================
+   SLASH COMMANDS
+========================= */
 
 async function registerCommands() {
   const commands = [
-  new SlashCommandBuilder()
-    .setName("dienstpanel")
-    .setDescription("Sendet das Dienst-Panel in diesen Channel")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
+    new SlashCommandBuilder()
+      .setName("abmeldungspanel")
+      .setDescription("Sendet das Abmeldungspanel in diesen Channel")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .toJSON(),
 
-  new SlashCommandBuilder()
-    .setName("dienststatus")
-    .setDescription("Aktualisiert die Dienst-Anzeige")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-
-  new SlashCommandBuilder()
-    .setName("abmeldungspanel")
-    .setDescription("Sendet das Abmeldungspanel in diesen Channel")
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-];
+    new SlashCommandBuilder()
+      .setName("fightpanel")
+      .setDescription("Sendet das Fight-Einträge Panel in diesen Channel")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .toJSON(),
+  ];
 
   const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
@@ -487,112 +318,348 @@ async function registerCommands() {
   );
 }
 
+/* =========================
+   BOT READY
+========================= */
+
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Eingeloggt als ${client.user.tag}`);
 
   await registerCommands();
 
-  const guild = await client.guilds.fetch(process.env.GUILD_ID).catch(() => null);
-  if (guild) {
-    await updateStatusMessage(guild);
-  }
-
-  console.log("✅ Dienstsystem bereit");
+  console.log("✅ Abmeldungssystem bereit");
+  console.log("✅ Fight-Einträge System bereit");
 });
 
+/* =========================
+   INTERACTIONS
+========================= */
+
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    if (interaction.commandName === "dienstpanel") {
-      const msg = await interaction.reply({
-        embeds: [buildPanelEmbed()],
-        components: [buildPanelButtons()],
-        fetchReply: true,
-      });
+  try {
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "abmeldungspanel") {
+        await interaction.reply({
+          embeds: [buildAbmeldungPanelEmbed()],
+          components: [buildAbmeldungPanelButtons()],
+        });
 
-      return;
+        return;
+      }
+
+      if (interaction.commandName === "fightpanel") {
+        const entryChannelId = process.env.FIGHT_ENTRY_CHANNEL_ID;
+
+        if (entryChannelId && interaction.channel.id !== entryChannelId) {
+          return interaction.reply({
+            content: `❌ Bitte nutze den Befehl in <#${entryChannelId}>.`,
+            ephemeral: true,
+          });
+        }
+
+        await interaction.reply({
+          embeds: [buildFightPanelEmbed()],
+          components: [buildFightPanelButtons()],
+        });
+
+        return;
+      }
     }
 
-    if (interaction.commandName === "dienststatus") {
-      await interaction.deferReply({ ephemeral: true });
-      await updateStatusMessage(interaction.guild);
+    if (interaction.isButton()) {
+      if (interaction.customId === "abmeldung_oeffnen") {
+        return interaction.showModal(buildAbmeldungModal());
+      }
 
+      if (interaction.customId === "fight_open_4h") {
+        const entryChannelId = process.env.FIGHT_ENTRY_CHANNEL_ID;
+
+        if (entryChannelId && interaction.channel.id !== entryChannelId) {
+          return interaction.reply({
+            content: `❌ Fight-Einträge bitte nur in <#${entryChannelId}> erstellen.`,
+            ephemeral: true,
+          });
+        }
+
+        return interaction.showModal(build4hModal());
+      }
+
+      if (interaction.customId === "fight_open_streetfight") {
+        const entryChannelId = process.env.FIGHT_ENTRY_CHANNEL_ID;
+
+        if (entryChannelId && interaction.channel.id !== entryChannelId) {
+          return interaction.reply({
+            content: `❌ Fight-Einträge bitte nur in <#${entryChannelId}> erstellen.`,
+            ephemeral: true,
+          });
+        }
+
+        return interaction.showModal(buildStreetfightModal());
+      }
+    }
+
+    if (interaction.isModalSubmit()) {
+      if (interaction.customId === "abmeldung_modal") {
+        const von = interaction.fields.getTextInputValue("abmeldung_von");
+        const bis = interaction.fields.getTextInputValue("abmeldung_bis");
+        const grund = interaction.fields.getTextInputValue("abmeldung_grund");
+
+        const channelId = process.env.ABMELDUNG_CHANNEL_ID;
+
+        if (!channelId) {
+          return interaction.reply({
+            content: "❌ ABMELDUNG_CHANNEL_ID fehlt in der .env.",
+            ephemeral: true,
+          });
+        }
+
+        const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+
+        if (!channel) {
+          return interaction.reply({
+            content: "❌ Abmeldungs-Channel wurde nicht gefunden. Prüfe ABMELDUNG_CHANNEL_ID.",
+            ephemeral: true,
+          });
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0x6f2dbd)
+          .setAuthor({
+            name: "Angels of Death • Neue Abmeldung",
+            iconURL: getLogoUrl(),
+          })
+          .setTitle("📌 Abmeldung eingetragen")
+          .setDescription(
+            [
+              `> <@${interaction.user.id}> hat eine neue Abmeldung eingetragen.`,
+              "",
+              "━━━━━━━━━━━━━━━━━━━━",
+            ].join("\n")
+          )
+          .addFields(
+            {
+              name: "👤 Person",
+              value: `<@${interaction.user.id}>`,
+              inline: true,
+            },
+            {
+              name: "📅 Von",
+              value: `\`${von}\``,
+              inline: true,
+            },
+            {
+              name: "📅 Bis",
+              value: `\`${bis}\``,
+              inline: true,
+            },
+            {
+              name: "📝 Grund",
+              value: `>>> ${grund}`,
+              inline: false,
+            },
+            {
+              name: "✅ Status",
+              value: "`Abgemeldet`",
+              inline: true,
+            },
+            {
+              name: "🕒 Eingetragen",
+              value: `<t:${Math.floor(Date.now() / 1000)}:f>`,
+              inline: true,
+            }
+          )
+          .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+          .setImage(getLogoUrl())
+          .setFooter({
+            text: "AOD • Abmeldungssystem",
+            iconURL: getLogoUrl(),
+          })
+          .setTimestamp();
+
+        await channel.send({ embeds: [embed] });
+
+        return interaction.reply({
+          content: "✅ Deine Abmeldung wurde eingetragen.",
+          ephemeral: true,
+        });
+      }
+
+      if (interaction.customId === "fight_modal_4h") {
+        await interaction.deferReply({ ephemeral: true });
+
+        const fraktion = interaction.fields.getTextInputValue("fraktion");
+        const gegner = interaction.fields.getTextInputValue("gegner");
+        const gewinner = interaction.fields.getTextInputValue("gewinner");
+        const forderung = interaction.fields.getTextInputValue("forderung");
+        const details = interaction.fields.getTextInputValue("details");
+
+        const imageUrl = await waitForFightImage(interaction);
+
+        const targetChannelId = process.env.FIGHT_4H_CHANNEL_ID;
+
+        if (!targetChannelId) {
+          return interaction.editReply("❌ FIGHT_4H_CHANNEL_ID fehlt in der .env.");
+        }
+
+        const targetChannel = await interaction.guild.channels.fetch(targetChannelId).catch(() => null);
+
+        if (!targetChannel) {
+          return interaction.editReply("❌ 4H-Regel Channel wurde nicht gefunden.");
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0x6f2dbd)
+          .setAuthor({
+            name: "Angels of Death • 4H-Regel",
+            iconURL: getLogoUrl(),
+          })
+          .setTitle("🏠 4H-Regel • Konflikt Eintrag")
+          .setDescription("━━━━━━━━━━━━━━━━━━━━")
+          .addFields(
+            {
+              name: "🏴 Eigene Fraktion",
+              value: `\`${fraktion}\``,
+              inline: true,
+            },
+            {
+              name: "⚔️ Gegner",
+              value: `\`${gegner}\``,
+              inline: true,
+            },
+            {
+              name: "🏆 Gewinner",
+              value: `\`${gewinner}\``,
+              inline: true,
+            },
+            {
+              name: "💰 Forderung",
+              value: `>>> ${forderung}`,
+              inline: false,
+            },
+            {
+              name: "📌 Details",
+              value: `>>> ${details}`,
+              inline: false,
+            },
+            {
+              name: "👤 Eingetragen von",
+              value: `<@${interaction.user.id}>`,
+              inline: true,
+            },
+            {
+              name: "🕒 Eingetragen",
+              value: `<t:${Math.floor(Date.now() / 1000)}:f>`,
+              inline: true,
+            }
+          )
+          .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+          .setFooter({
+            text: "AOD • 4H-Regel System",
+            iconURL: getLogoUrl(),
+          })
+          .setTimestamp();
+
+        if (imageUrl) embed.setImage(imageUrl);
+
+        await targetChannel.send({ embeds: [embed] });
+
+        return interaction.editReply(`✅ 4H-Regel Eintrag wurde in <#${targetChannelId}> gesendet.`);
+      }
+
+      if (interaction.customId === "fight_modal_streetfight") {
+        await interaction.deferReply({ ephemeral: true });
+
+        const gegner = interaction.fields.getTextInputValue("gegner");
+        const stand = interaction.fields.getTextInputValue("stand");
+        const forderung = interaction.fields.getTextInputValue("forderung");
+        const ortzeit = interaction.fields.getTextInputValue("ortzeit");
+        const ergebnis = interaction.fields.getTextInputValue("ergebnis") || "-";
+
+        const imageUrl = await waitForFightImage(interaction);
+
+        const targetChannelId = process.env.FIGHT_STREETFIGHT_CHANNEL_ID;
+
+        if (!targetChannelId) {
+          return interaction.editReply("❌ FIGHT_STREETFIGHT_CHANNEL_ID fehlt in der .env.");
+        }
+
+        const targetChannel = await interaction.guild.channels.fetch(targetChannelId).catch(() => null);
+
+        if (!targetChannel) {
+          return interaction.editReply("❌ Streetfight Channel wurde nicht gefunden.");
+        }
+
+        const embed = new EmbedBuilder()
+          .setColor(0xe74c3c)
+          .setAuthor({
+            name: "Angels of Death • Streetfight",
+            iconURL: getLogoUrl(),
+          })
+          .setTitle("🚘 Streetfight • Eintrag")
+          .setDescription("━━━━━━━━━━━━━━━━━━━━")
+          .addFields(
+            {
+              name: "👥 Name / Gegner",
+              value: `\`${gegner}\``,
+              inline: true,
+            },
+            {
+              name: "📊 Stand",
+              value: `\`${stand}\``,
+              inline: true,
+            },
+            {
+              name: "💰 Forderung",
+              value: `>>> ${forderung}`,
+              inline: false,
+            },
+            {
+              name: "📍 Ort & Zeit",
+              value: `>>> ${ortzeit}`,
+              inline: false,
+            },
+            {
+              name: "📝 Ergebnis / Notiz",
+              value: `>>> ${ergebnis}`,
+              inline: false,
+            },
+            {
+              name: "👤 Eingetragen von",
+              value: `<@${interaction.user.id}>`,
+              inline: true,
+            },
+            {
+              name: "🕒 Eingetragen",
+              value: `<t:${Math.floor(Date.now() / 1000)}:f>`,
+              inline: true,
+            }
+          )
+          .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+          .setFooter({
+            text: "AOD • Streetfight System",
+            iconURL: getLogoUrl(),
+          })
+          .setTimestamp();
+
+        if (imageUrl) embed.setImage(imageUrl);
+
+        await targetChannel.send({ embeds: [embed] });
+
+        return interaction.editReply(`✅ Streetfight Eintrag wurde in <#${targetChannelId}> gesendet.`);
+      }
+    }
+  } catch (error) {
+    console.error("Interaction Fehler:", error);
+
+    if (interaction.deferred || interaction.replied) {
       return interaction.editReply({
-        content: "✅ Dienst-Status wurde aktualisiert.",
+        content: "❌ Es ist ein Fehler passiert. Check die Konsole.",
       });
     }
-  }
-
-if (interaction.commandName === "abmeldungspanel") {
-  await interaction.reply({
-    embeds: [buildAbmeldungPanelEmbed()],
-    components: [buildAbmeldungPanelButtons()],
-  });
-
-  return;
-}
-
-if (interaction.isModalSubmit()) {
-  if (interaction.customId === "abmeldung_modal") {
-    const von = interaction.fields.getTextInputValue("abmeldung_von");
-    const bis = interaction.fields.getTextInputValue("abmeldung_bis");
-    const grund = interaction.fields.getTextInputValue("abmeldung_grund");
-
-    const channelId = process.env.ABMELDUNG_CHANNEL_ID;
-    const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
-
-    if (!channel) {
-      return interaction.reply({
-        content: "❌ Abmeldungs-Channel wurde nicht gefunden. Prüfe ABMELDUNG_CHANNEL_ID in der .env.",
-        ephemeral: true,
-      });
-    }
-
-    const embed = new EmbedBuilder()
-      .setColor(0xe74c3c)
-      .setTitle("📝 Neue Abmeldung")
-      .addFields(
-        { name: "Person", value: `<@${interaction.user.id}>`, inline: true },
-        { name: "Von", value: von, inline: true },
-        { name: "Bis", value: bis, inline: true },
-        { name: "Grund", value: grund, inline: false }
-      )
-      .setFooter({ text: `Eingetragen von ${interaction.user.tag}` })
-      .setTimestamp();
-
-    await channel.send({ embeds: [embed] });
 
     return interaction.reply({
-      content: "✅ Deine Abmeldung wurde eingetragen.",
+      content: "❌ Es ist ein Fehler passiert. Check die Konsole.",
       ephemeral: true,
-    });
-  }
-}
-
-  if (!interaction.isButton()) return;
-  if (interaction.customId === "abmeldung_oeffnen") {
-  return interaction.showModal(buildAbmeldungModal());
-}
-  if (!interaction.customId.startsWith("dienst_")) return;
-
-  await interaction.deferReply({ ephemeral: true });
-
-  if (interaction.customId === "dienst_masse") {
-    return eintragen(interaction, "masse");
-  }
-
-  if (interaction.customId === "dienst_leader") {
-    return eintragen(interaction, "leader");
-  }
-
-  if (interaction.customId === "dienst_aus") {
-    return austragen(interaction);
-  }
-
-  if (interaction.customId === "dienst_refresh") {
-    await updateStatusMessage(interaction.guild);
-
-    return interaction.editReply({
-      content: "🔄 Dienst-Anzeige wurde aktualisiert.",
     });
   }
 });
