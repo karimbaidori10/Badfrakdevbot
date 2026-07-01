@@ -406,6 +406,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   }
 
+if (interaction.commandName === "abmeldungspanel") {
+  await interaction.reply({
+    embeds: [buildAbmeldungPanelEmbed()],
+    components: [buildAbmeldungPanelButtons()],
+  });
+
+  return;
+}
+
   if (!interaction.isButton()) return;
   if (!interaction.customId.startsWith("dienst_")) return;
 
@@ -431,14 +440,5 @@ client.on(Events.InteractionCreate, async (interaction) => {
     });
   }
 });
-
-if (interaction.commandName === "abmeldungspanel") {
-  await interaction.reply({
-    embeds: [buildAbmeldungPanelEmbed()],
-    components: [buildAbmeldungPanelButtons()],
-  });
-
-  return;
-}
 
 client.login(process.env.TOKEN);
