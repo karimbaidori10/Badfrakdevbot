@@ -300,6 +300,31 @@ async function waitForFightImage(interaction) {
    BOT READY
 ========================= */
 
+async function registerCommands() {
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("abmeldungspanel")
+      .setDescription("Sendet das Abmeldungspanel in diesen Channel")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .toJSON(),
+
+    new SlashCommandBuilder()
+      .setName("fightpanel")
+      .setDescription("Sendet das Fight-Einträge Panel in diesen Channel")
+      .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+      .toJSON(),
+  ];
+
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
+
+  await rest.put(
+    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+    { body: commands }
+  );
+
+  console.log("✅ Slash Commands registriert");
+}
+
 client.once(Events.ClientReady, async () => {
   console.log(`✅ Eingeloggt als ${client.user.tag}`);
 
