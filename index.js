@@ -14,6 +14,9 @@ const {
   REST,
   Routes,
   PermissionFlagsBits,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require("discord.js");
 
 const DATA_DIR = path.join(__dirname, "data");
@@ -143,11 +146,46 @@ function buildAbmeldungPanelEmbed() {
 function buildAbmeldungPanelButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId("dienst_aus")
-      .setLabel("Abmelden")
-      .setEmoji("🔴")
+      .setCustomId("abmeldung_oeffnen")
+      .setLabel("Abmeldung eintragen")
+      .setEmoji("📝")
       .setStyle(ButtonStyle.Danger)
   );
+}
+
+function buildAbmeldungModal() {
+  const modal = new ModalBuilder()
+    .setCustomId("abmeldung_modal")
+    .setTitle("Abmeldung eintragen");
+
+  const vonInput = new TextInputBuilder()
+    .setCustomId("abmeldung_von")
+    .setLabel("Von wann?")
+    .setPlaceholder("z.B. 01.07.2026 18:00 Uhr")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const bisInput = new TextInputBuilder()
+    .setCustomId("abmeldung_bis")
+    .setLabel("Bis wann?")
+    .setPlaceholder("z.B. 03.07.2026 20:00 Uhr")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const grundInput = new TextInputBuilder()
+    .setCustomId("abmeldung_grund")
+    .setLabel("Grund")
+    .setPlaceholder("z.B. Privat, Arbeit, Urlaub, Krankheit...")
+    .setStyle(TextInputStyle.Paragraph)
+    .setRequired(true);
+
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(vonInput),
+    new ActionRowBuilder().addComponents(bisInput),
+    new ActionRowBuilder().addComponents(grundInput)
+  );
+
+  return modal;
 }
 
 function buildStatusEmbed(guild) {
@@ -415,7 +453,47 @@ if (interaction.commandName === "abmeldungspanel") {
   return;
 }
 
+if (interaction.isModalSubmit()) {
+  if (interaction.customId === "abmeldung_modal") {
+    const von = interaction.fields.getTextInputValue("abmeldung_von");
+    const bis = interaction.fields.getTextInputValue("abmeldung_bis");
+    const grund = interaction.fields.getTextInputValue("abmeldung_grund");
+
+    const channelId = process.env.ABMELDUNG_CHANNEL_ID;
+    const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+
+    if (!channel) {
+      return interaction.reply({
+        content: "❌ Abmeldungs-Channel wurde nicht gefunden. Prüfe ABMELDUNG_CHANNEL_ID in der .env.",
+        ephemeral: true,
+      });
+    }
+
+    const embed = new EmbedBuilder()
+      .setColor(0xe74c3c)
+      .setTitle("📝 Neue Abmeldung")
+      .addFields(
+        { name: "Person", value: `<@${interaction.user.id}>`, inline: true },
+        { name: "Von", value: von, inline: true },
+        { name: "Bis", value: bis, inline: true },
+        { name: "Grund", value: grund, inline: false }
+      )
+      .setFooter({ text: `Eingetragen von ${interaction.user.tag}` })
+      .setTimestamp();
+
+    await channel.send({ embeds: [embed] });
+
+    return interaction.reply({
+      content: "✅ Deine Abmeldung wurde eingetragen.",
+      ephemeral: true,
+    });
+  }
+}
+
   if (!interaction.isButton()) return;
+  if (interaction.customId === "abmeldung_oeffnen") {
+  return interaction.showModal(buildAbmeldungModal());
+}
   if (!interaction.customId.startsWith("dienst_")) return;
 
   await interaction.deferReply({ ephemeral: true });
