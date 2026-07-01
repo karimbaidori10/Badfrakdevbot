@@ -51,8 +51,8 @@ function unix(ms) {
 }
 
 function typeName(type) {
-  if (type === "leader") return "Leaderschaft";
-  return "Masse";
+  if (type === "leader") return "LS ist IC";
+  return "Masse ist IC";
 }
 
 function typeEmoji(type) {
@@ -94,9 +94,9 @@ function buildPanelEmbed() {
       [
         "Trage dich hier in den Dienst ein oder wieder aus.",
         "",
-        "👥 **Masse** = normaler Dienst",
-        "👑 **Leaderschaft** = Leaderschaft im Dienst",
-        "🔴 **Austragen** = Dienst beenden",
+        "👥 **Masse ist IC** = als Masse eintragen",
+        "👑 **Leaderschaft** = als Leaderschaft eintragen",
+        "🔴 **Austragen** =  Austragen",
       ].join("\n")
     )
     .setFooter({ text: "Dienst Panel • Automatisches Logging aktiv" })
@@ -107,13 +107,13 @@ function buildPanelButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId("dienst_masse")
-      .setLabel("Masse eintragen")
+      .setLabel("Masse ist IC")
       .setEmoji("👥")
       .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
       .setCustomId("dienst_leader")
-      .setLabel("Leaderschaft eintragen")
+      .setLabel("Leaderschaft ist IC")
       .setEmoji("👑")
       .setStyle(ButtonStyle.Primary),
 
@@ -138,7 +138,7 @@ function buildStatusEmbed(guild) {
   const leader = users.filter((u) => u.type === "leader");
 
   const formatList = (list) => {
-    if (!list.length) return "Keiner im Dienst";
+    if (!list.length) return "Keiner ist IC";
 
     return list
       .map((u) => {
@@ -149,22 +149,22 @@ function buildStatusEmbed(guild) {
 
   return new EmbedBuilder()
     .setColor(0x3498db)
-    .setTitle("📋 Aktuell im Dienst")
+    .setTitle("📋 Aktuell IC")
     .setDescription(`Live-Übersicht für **${guild.name}**`)
     .addFields(
       {
-        name: `👥 Masse im Dienst — ${masse.length}`,
+        name: `👥 Masse ist IC — ${masse.length}`,
         value: formatList(masse),
         inline: false,
       },
       {
-        name: `👑 Leaderschaft im Dienst — ${leader.length}`,
+        name: `👑 Leaderschaft ist IC — ${leader.length}`,
         value: formatList(leader),
         inline: false,
       },
       {
         name: "📊 Gesamt",
-        value: `**${users.length}** Person(en) aktuell im Dienst`,
+        value: `**${users.length}** Person(en) aktuell IC `,
         inline: false,
       }
     )
@@ -187,14 +187,18 @@ async function updateStatusMessage(guild) {
     message = await channel.messages.fetch(state.statusMessageId).catch(() => null);
   }
 
-  if (!message) {
-    message = await channel.send({ embeds: [embed] });
-    state.statusMessageId = message.id;
-    saveState();
+  if (message) {
+    await message.edit({ embeds: [embed] }).catch(async () => {
+      const newMessage = await channel.send({ embeds: [embed] });
+      state.statusMessageId = newMessage.id;
+      saveState();
+    });
     return;
   }
 
-  await message.edit({ embeds: [embed] });
+  const newMessage = await channel.send({ embeds: [embed] });
+  state.statusMessageId = newMessage.id;
+  saveState();
 }
 
 async function sendLog(guild, user, action, type = null) {
@@ -210,9 +214,9 @@ async function sendLog(guild, user, action, type = null) {
     0xe74c3c;
 
   const title =
-    action === "eintragen" ? "🟢 Dienst eingetragen" :
-    action === "wechsel" ? "🟡 Dienst-Art gewechselt" :
-    "🔴 Dienst ausgetragen";
+    action === "eintragen" ? "🟢 IC eingetragen" :
+    action === "wechsel" ? "🟡 IC-Art gewechselt" :
+    "🔴 IC ausgetragen";
 
   const embed = new EmbedBuilder()
     .setColor(color)
@@ -278,7 +282,7 @@ async function eintragen(interaction, type) {
   await sendLog(interaction.guild, interaction.user, action, type);
 
   return interaction.editReply({
-    content: `✅ Du bist jetzt als **${typeName(type)}** im Dienst eingetragen.`,
+    content: `✅ Du bist jetzt als **${typeName(type)}** IC eingetragen.`,
   });
 }
 
@@ -288,7 +292,7 @@ async function austragen(interaction) {
 
   if (!state.users[userId]) {
     return interaction.editReply({
-      content: "⚠️ Du bist aktuell nicht im Dienst eingetragen.",
+      content: "⚠️ Du bist aktuell nicht IC eingetragen.",
     });
   }
 
@@ -315,7 +319,7 @@ async function austragen(interaction) {
   await sendLog(interaction.guild, interaction.user, "austragen", oldType);
 
   return interaction.editReply({
-    content: "🔴 Du wurdest aus dem Dienst ausgetragen.",
+    content: "🔴 Du wurdest IC ausgetragen.",
   });
 }
 

@@ -1,0 +1,69 @@
+{
+  "statusMessageId": "1521693600465817681",
+  "users": {
+    "990622084055060481": {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "type": "leader",
+      "since": 1782870573279
+    }
+  },
+  "history": [
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "eintragen",
+      "type": "leader",
+      "time": 1782870573279
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "austragen",
+      "type": "masse",
+      "time": 1782870570890
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "eintragen",
+      "type": "masse",
+      "time": 1782870566300
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "austragen",
+      "type": "leader",
+      "time": 1782870561751
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "eintragen",
+      "type": "leader",
+      "time": 1782870481637
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "austragen",
+      "type": "leader",
+      "time": 1782870440710
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "wechsel",
+      "type": "leader",
+      "time": 1782870433202
+    },
+    {
+      "userId": "990622084055060481",
+      "tag": "74_karim",
+      "action": "eintragen",
+      "type": "leader",
+      "time": 1782870278764
+    }
+  ]
+}
