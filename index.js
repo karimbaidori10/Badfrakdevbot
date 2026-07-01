@@ -63,6 +63,10 @@ function typeEmoji(type) {
   return "👥";
 }
 
+function getLogoUrl() {
+  return process.env.AOD_LOGO_URL || client.user?.displayAvatarURL();
+}
+
 function getRoleIdsForType(type) {
   const ids = [];
 
@@ -136,10 +140,44 @@ function buildPanelButtons() {
 
 function buildAbmeldungPanelEmbed() {
   return new EmbedBuilder()
-    .setColor(0xe74c3c)
-    .setTitle("🔴 Abmeldung")
-    .setDescription("Klicke unten auf **Abmelden**, um dich auszutragen.")
-    .setFooter({ text: "Abmeldung • Automatisches Logging aktiv" })
+    .setColor(0x6f2dbd)
+    .setAuthor({
+      name: "Angels of Death • Abmeldungssystem",
+      iconURL: getLogoUrl(),
+    })
+    .setTitle("📋 Abmeldung eintragen")
+    .setDescription(
+      [
+        "Du bist für eine bestimmte Zeit nicht da?",
+        "Dann trage deine Abmeldung hier sauber ein.",
+        "",
+        "```ansi",
+        "[2;35mBenötigte Angaben[0m",
+        "• Von wann",
+        "• Bis wann",
+        "• Grund",
+        "```",
+        "",
+        "Klicke unten auf **Abmeldung eintragen**, um das Formular zu öffnen.",
+      ].join("\n")
+    )
+    .addFields(
+      {
+        name: "📝 Formular",
+        value: "Trage deine Abmeldung direkt über Discord ein.",
+        inline: true,
+      },
+      {
+        name: "📨 Channel",
+        value: "Die Abmeldung wird automatisch gepostet.",
+        inline: true,
+      }
+    )
+    .setThumbnail(getLogoUrl())
+    .setFooter({
+      text: "AOD • Motorcycle Club",
+      iconURL: getLogoUrl(),
+    })
     .setTimestamp();
 }
 
@@ -276,18 +314,58 @@ async function sendLog(guild, user, action, type = null) {
     "🔴 IC ausgetragen";
 
   const embed = new EmbedBuilder()
-    .setColor(color)
-    .setTitle(title)
-    .addFields(
-      { name: "Person", value: `<@${user.id}>`, inline: true },
-      { name: "User ID", value: user.id, inline: true },
-      {
-        name: "Bereich",
-        value: type ? `${typeEmoji(type)} ${typeName(type)}` : "Ausgetragen",
-        inline: true,
-      }
-    )
-    .setTimestamp();
+  .setColor(0x6f2dbd)
+  .setAuthor({
+    name: "Angels of Death • Neue Abmeldung",
+    iconURL: getLogoUrl(),
+  })
+  .setTitle("📌 Abmeldung eingetragen")
+  .setDescription(
+    [
+      `> <@${interaction.user.id}> hat eine neue Abmeldung eingetragen.`,
+      "",
+      "━━━━━━━━━━━━━━━━━━━━",
+    ].join("\n")
+  )
+  .addFields(
+    {
+      name: "👤 Person",
+      value: `<@${interaction.user.id}>`,
+      inline: true,
+    },
+    {
+      name: "📅 Von",
+      value: `\`${von}\``,
+      inline: true,
+    },
+    {
+      name: "📅 Bis",
+      value: `\`${bis}\``,
+      inline: true,
+    },
+    {
+      name: "📝 Grund",
+      value: `>>> ${grund}`,
+      inline: false,
+    },
+    {
+      name: "✅ Status",
+      value: "`Abgemeldet`",
+      inline: true,
+    },
+    {
+      name: "🕒 Eingetragen",
+      value: `<t:${Math.floor(Date.now() / 1000)}:f>`,
+      inline: true,
+    }
+  )
+  .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true }))
+  .setImage(getLogoUrl())
+  .setFooter({
+    text: "AOD • Abmeldungssystem",
+    iconURL: getLogoUrl(),
+  })
+  .setTimestamp();
 
   await channel.send({ embeds: [embed] });
 }
